@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AddFeedForm } from "@/components/add-feed-form";
 import { FeedList } from "@/components/feed-list";
+import { PresetFeedPicker } from "@/components/preset-feed-picker";
 
 export default async function SourcesPage() {
   const session = await getServerSession(authOptions);
@@ -16,6 +17,8 @@ export default async function SourcesPage() {
     include: { _count: { select: { articles: true } } },
   });
 
+  const subscribedUrls = new Set(feeds.map((f) => f.url));
+
   return (
     <div className="mx-auto max-w-2xl px-6 py-6">
       <header className="mb-6">
@@ -25,6 +28,9 @@ export default async function SourcesPage() {
         </p>
       </header>
       <AddFeedForm />
+      <div className="mb-6">
+        <PresetFeedPicker subscribedUrls={subscribedUrls} />
+      </div>
       <FeedList
         feeds={feeds.map((f) => ({
           id: f.id,
