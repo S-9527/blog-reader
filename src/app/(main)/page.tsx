@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { ArticleList } from "@/components/article-list";
+import { listArticles } from "@/lib/list-articles";
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -9,14 +9,7 @@ export default async function HomePage() {
 
   if (!userId) return null;
 
-  const articles = await prisma.article.findMany({
-    where: { userId },
-    orderBy: { publishedAt: "desc" },
-    take: 50,
-    include: {
-      feed: { select: { title: true, favicon: true } },
-    },
-  });
+  const { articles, nextCursor } = await listArticles({ userId });
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -24,17 +17,8 @@ export default async function HomePage() {
         <h1 className="text-lg font-semibold text-zinc-900">全部文章</h1>
       </header>
       <ArticleList
-        articles={articles.map((a) => ({
-          id: a.id,
-          title: a.title,
-          url: a.url,
-          content: a.content || "",
-          author: a.author,
-          publishedAt: a.publishedAt?.toISOString() ?? null,
-          isRead: a.isRead,
-          isStarred: a.isStarred,
-          feed: a.feed,
-        }))}
+        articles={articles}
+        nextCursor={nextCursor}
       />
     </div>
   );
