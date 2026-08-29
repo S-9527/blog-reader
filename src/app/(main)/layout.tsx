@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { SignOutButton } from "@/components/nav";
+import { LayoutGrid, Inbox, Star, Rss } from "lucide-react";
 
 export default async function MainLayout({
   children,
@@ -26,10 +27,10 @@ export default async function MainLayout({
   });
 
   const navItems = [
-    { href: "/", label: "全部文章", active: true },
-    { href: "/unread", label: `未读 (${unreadCount})`, active: false },
-    { href: "/starred", label: "我的收藏", active: false },
-    { href: "/sources", label: "订阅源管理", active: false },
+    { href: "/", label: "全部文章", Icon: LayoutGrid },
+    { href: "/unread", label: `未读 (${unreadCount})`, Icon: Inbox },
+    { href: "/starred", label: "我的收藏", Icon: Star },
+    { href: "/sources", label: "订阅源管理", Icon: Rss },
   ];
 
   return (
@@ -49,8 +50,9 @@ export default async function MainLayout({
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className="block rounded-md px-2 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200"
+                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200"
                 >
+                  <item.Icon className="h-4 w-4 text-zinc-400" />
                   {item.label}
                 </Link>
               </li>

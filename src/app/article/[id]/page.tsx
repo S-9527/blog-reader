@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -55,8 +56,9 @@ export default async function ArticlePage(
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
       <nav className="mb-6 text-sm text-zinc-400">
-        <Link href="/" className="hover:text-zinc-700">
-          ← 返回文章列表
+        <Link href="/" className="inline-flex items-center gap-1.5 hover:text-zinc-700">
+          <ArrowLeft className="h-4 w-4" />
+          返回文章列表
         </Link>
       </nav>
 

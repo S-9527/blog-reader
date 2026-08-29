@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ExternalLink, Loader2, FileText } from "lucide-react";
 
 type Props = {
   articleId: string;
@@ -41,14 +42,16 @@ export function FullTextButton({ articleId, sourceUrl }: Props) {
         />
       ) : (
         <div className="my-6 flex flex-col items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-8 text-center">
+          <FileText className="h-8 w-8 text-zinc-300" />
           <p className="text-sm text-zinc-500">
             该文章仅有摘要，可点击获取完整正文。
           </p>
           <button
             onClick={loadFullText}
             disabled={loading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? "获取中…" : "加载全文"}
           </button>
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -56,9 +59,10 @@ export function FullTextButton({ articleId, sourceUrl }: Props) {
             href={sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-zinc-400 underline hover:text-zinc-600"
+            className="flex items-center gap-1 text-xs text-zinc-400 underline hover:text-zinc-600"
           >
             或在新窗口打开原文
+            <ExternalLink className="h-3 w-3" />
           </a>
         </div>
       )}

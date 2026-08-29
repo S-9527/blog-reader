@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Star, MailOpen, Mail } from "lucide-react";
 
 type ArticleItem = {
   id: string;
@@ -120,8 +121,9 @@ export function ArticleList({
                 article.isRead ? "text-zinc-400" : "text-blue-600"
               }`}
               title={article.isRead ? "标记为未读" : "标记为已读"}
+              aria-label={article.isRead ? "标记为未读" : "标记为已读"}
             >
-              {article.isRead ? "已读" : "未读"}
+              {article.isRead ? <Mail className="h-4 w-4" /> : <MailOpen className="h-4 w-4" />}
             </button>
             <button
               onClick={() => toggleStar(article)}
@@ -130,8 +132,12 @@ export function ArticleList({
                 article.isStarred ? "text-amber-500" : "text-zinc-400"
               }`}
               title={article.isStarred ? "取消收藏" : "收藏"}
+              aria-label={article.isStarred ? "取消收藏" : "收藏"}
             >
-              {article.isStarred ? "★" : "☆"}
+              <Star
+                className="h-4 w-4"
+                fill={article.isStarred ? "currentColor" : "none"}
+              />
             </button>
           </div>
         </li>
