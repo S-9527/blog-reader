@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseFeed, upsertArticles } from "@/lib/rss";
+import { validateAllPresets, discoverNewFeeds } from "@/lib/validate-feeds";
+import { MAX_CONSECUTIVE_FAILURES } from "@/lib/validate-feeds";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -18,19 +20,60 @@ export async function GET(request: Request) {
   let fetched = 0;
   let failed = 0;
 
+  // 1. 抓取所有用户订阅源，同时累计健康状态
   for (const feed of feeds) {
     try {
       const parsed = await parseFeed(feed.url);
       await upsertArticles(feed.id, feed.userId, parsed);
       await prisma.feed.update({
         where: { id: feed.id },
-        data: { lastFetchedAt: new Date() },
+        data: {
+          lastFetchedAt: new Date(),
+          isHealthy: true,
+          consecutiveFailures: 0,
+          lastCheckedAt: new Date(),
+          lastSuccessAt: new Date(),
+          lastError: null,
+        },
       });
       fetched++;
-    } catch {
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : "抓取失败";
+      const nextCount = (feed.consecutiveFailures ?? 0) + 1;
+      await prisma.feed.update({
+        where: { id: feed.id },
+        data: {
+          consecutiveFailures: nextCount,
+          isHealthy: nextCount < MAX_CONSECUTIVE_FAILURES,
+          lastCheckedAt: new Date(),
+          lastError: errMsg,
+        },
+      });
       failed++;
     }
   }
 
-  return NextResponse.json({ success: true, feeds: feeds.length, fetched, failed });
+  // 2. 校验官方源库可用性
+  const presetResult = await validateAllPresets().catch(() => ({
+    checked: 0,
+    valid: 0,
+    invalid: 0,
+  }));
+
+  // 3. 自动发现新的有效源
+  const discoveryResult = await discoverNewFeeds().catch(() => ({
+    discovered: 0,
+    totalSeeds: 0,
+  }));
+
+  return NextResponse.json({
+    success: true,
+    feeds: feeds.length,
+    fetched,
+    failed,
+    presetChecked: presetResult.checked,
+    presetValid: presetResult.valid,
+    presetInvalid: presetResult.invalid,
+    discovered: discoveryResult.discovered,
+  });
 }

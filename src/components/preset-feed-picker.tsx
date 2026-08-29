@@ -2,15 +2,22 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Plus, Rss } from "lucide-react";
+import { Check, Loader2, Plus, Rss, Sparkles, TriangleAlert } from "lucide-react";
 import {
-  PRESET_FEEDS,
   PRESET_CATEGORIES,
-  type PresetFeed,
+  type PresetFeedCategory,
 } from "@/lib/preset-feeds";
 
 type Props = {
   subscribedUrls: Set<string>;
+  presets: {
+    title: string;
+    url: string;
+    category: PresetFeedCategory;
+    description: string | null;
+    isValid: boolean;
+    isNew: boolean;
+  }[];
 };
 
 type Result = {
@@ -27,7 +34,7 @@ function normalize(url: string) {
   }
 }
 
-export function PresetFeedPicker({ subscribedUrls }: Props) {
+export function PresetFeedPicker({ subscribedUrls, presets }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -39,24 +46,22 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
   );
 
   const feedsByCategory = useMemo(() => {
-    const map = new Map<string, PresetFeed[]>();
+    const map = new Map<PresetFeedCategory, typeof presets>();
     for (const category of PRESET_CATEGORIES) {
-      map.set(category, PRESET_FEEDS.filter((f) => f.category === category));
+      map.set(category, presets.filter((f) => f.category === category));
     }
     return map;
-  }, []);
+  }, [presets]);
 
-  const notSubscribed = useMemo(
-    () =>
-      PRESET_FEEDS.filter(
-        (f) => !normalizedSubscribed.has(normalize(f.url))
-      ),
-    [normalizedSubscribed]
-  );
+  const addableCount = useMemo(() => {
+    return presets.filter(
+      (f) => f.isValid && !normalizedSubscribed.has(normalize(f.url))
+    ).length;
+  }, [presets, normalizedSubscribed]);
 
-  function toggle(feed: PresetFeed) {
+  function toggle(feed: (typeof presets)[number]) {
     const isSubscribed = normalizedSubscribed.has(normalize(feed.url));
-    if (isSubscribed) return;
+    if (isSubscribed || !feed.isValid) return;
     setResult(null);
     setSelected((prev) => {
       const next = new Set(prev);
@@ -79,7 +84,11 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setResult({ added: 0, skipped: 0, failed: urls.map((u) => ({ url: u, error: data.error || "添加失败" })) });
+        setResult({
+          added: 0,
+          skipped: 0,
+          failed: urls.map((u) => ({ url: u, error: data.error || "添加失败" })),
+        });
       } else {
         setResult({
           added: data.added?.length ?? 0,
@@ -89,14 +98,16 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
         setSelected(new Set());
       }
     } catch {
-      setResult({ added: 0, skipped: 0, failed: urls.map((u) => ({ url: u, error: "网络错误" })) });
+      setResult({
+        added: 0,
+        skipped: 0,
+        failed: urls.map((u) => ({ url: u, error: "网络错误" })),
+      });
     } finally {
       setLoading(false);
       router.refresh();
     }
   }
-
-  const hasResult = result !== null;
 
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-4">
@@ -120,10 +131,12 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
       </div>
 
       <p className="mb-4 text-xs text-zinc-400">
-        勾选框架、语言、平台等官方博客，一键批量订阅，追踪技术更新。已订阅的源会标注并无法重复添加。
+        勾选框架、语言、平台等官方博客，一键批量订阅，追踪技术更新。已订阅的源会标注并无法重复添加；
+        <span className="font-medium text-emerald-600">新发现的源</span> 由定时任务自动探测加入，
+        失效的源（<TriangleAlert className="inline h-3 w-3 text-amber-500" />）暂不可订阅。
       </p>
 
-      {hasResult && (
+      {result && (
         <div
           className={`mb-4 rounded-md p-3 text-sm ${
             result.failed.length > 0
@@ -151,19 +164,23 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
             <div key={category}>
               <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-zinc-400">
                 {category}
+                <span className="ml-1 text-[10px] font-normal text-zinc-300">
+                  {feeds.length}
+                </span>
               </p>
               <ul className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
                 {feeds.map((feed) => {
                   const isSubscribed = normalizedSubscribed.has(normalize(feed.url));
                   const isChecked = selected.has(feed.url);
+                  const isSelectable = !isSubscribed && feed.isValid;
                   return (
                     <li key={feed.url}>
                       <button
                         type="button"
                         onClick={() => toggle(feed)}
-                        disabled={isSubscribed}
+                        disabled={!isSelectable}
                         className={`flex w-full items-start gap-3 px-3 py-2.5 text-left transition ${
-                          isSubscribed
+                          isSubscribed || !feed.isValid
                             ? "cursor-not-allowed bg-zinc-50 opacity-60"
                             : "hover:bg-zinc-50"
                         }`}
@@ -188,6 +205,18 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
                                 已订阅
                               </span>
                             )}
+                            {feed.isNew && (
+                              <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+                                <Sparkles className="h-3 w-3" />
+                                新发现
+                              </span>
+                            )}
+                            {!feed.isValid && (
+                              <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600">
+                                <TriangleAlert className="h-3 w-3" />
+                                失效
+                              </span>
+                            )}
                           </span>
                           <span className="mt-0.5 block text-xs text-zinc-500">
                             {feed.description}
@@ -206,9 +235,9 @@ export function PresetFeedPicker({ subscribedUrls }: Props) {
         })}
       </div>
 
-      {notSubscribed.length === 0 && (
+      {addableCount === 0 && (
         <p className="mt-4 rounded-md bg-green-50 p-3 text-center text-sm text-green-700">
-          官方博客源库中的源你都已订阅了。
+          官方博客源库中可订阅的源你都已订阅了。
         </p>
       )}
     </div>

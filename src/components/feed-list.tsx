@@ -11,6 +11,8 @@ type Feed = {
   favicon: string | null;
   description: string | null;
   lastFetchedAt: string | null;
+  isHealthy: boolean | null;
+  lastError: string | null;
   _count: { articles: number };
 };
 
@@ -100,6 +102,14 @@ export function FeedList({ feeds }: { feeds: Feed[] }) {
               <p className="mt-0.5 text-xs text-zinc-500">
                 {feed._count.articles} 篇文章 · 上次抓取 {timeAgo(feed.lastFetchedAt)}
               </p>
+              {feed.isHealthy === false && (
+                <p
+                  className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700"
+                  title={feed.lastError || "该源连续抓取失败，可能已失效"}
+                >
+                  ⚠ 可能失效
+                </p>
+              )}
             </div>
             <button
               onClick={() => refreshFeed(feed)}

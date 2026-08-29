@@ -55,19 +55,40 @@ model VerificationToken {
 }
 
 model Feed {
-  id            String    @id @default(cuid())
-  url           String
-  title         String
-  siteUrl       String?
-  description   String?
-  favicon       String?
-  lastFetchedAt DateTime?
-  createdAt     DateTime  @default(now())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  articles      Article[]
+  id                   String    @id @default(cuid())
+  url                  String
+  title                String
+  siteUrl              String?
+  description          String?
+  favicon              String?
+  lastFetchedAt        DateTime?
+  isHealthy            Boolean   @default(true)
+  consecutiveFailures  Int       @default(0)
+  lastCheckedAt        DateTime?
+  lastSuccessAt        DateTime?
+  lastError            String?
+  createdAt            DateTime  @default(now())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articles             Article[]
 
   @@unique([userId, url])
+}
+
+model PresetFeed {
+  id             String    @id @default(cuid())
+  title          String
+  url            String    @unique
+  siteUrl        String?
+  category       String
+  description    String?
+  isValid        Boolean   @default(true)
+  isNew          Boolean   @default(false)
+  lastCheckedAt  DateTime?
+  lastSuccessAt  DateTime?
+  lastError      String?
+  discoveredAt   DateTime?
+  createdAt      DateTime  @default(now())
 }
 
 model Article {
