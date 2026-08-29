@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FeedFlow — RSS 博客阅读器
 
-## Getting Started
+一个全栈 RSS 阅读器，基于 **Next.js 16 + React 19 + Tailwind 4 + Prisma 7 + PostgreSQL (Neon)**，支持 GitHub 登录、订阅管理、文章流阅读、收藏与已读状态、定时抓取。
 
-First, run the development server:
+## 功能
+
+- 🔐 GitHub OAuth 多用户登录（数据库会话）
+- 📡 订阅任意 RSS/Atom 源，自动解析标题、站点图标
+- 📰 文章流：全部 / 未读 / 收藏 / 按源筛选
+- ✨ 文章详情：消毒后的 HTML 正文直接渲染，阅读即标记，支持收藏
+- 🔄 手动刷新 + 定时抓取（Vercel Cron，每日一次）
+- 🖥️ 响应式侧边栏布局
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 框架 | Next.js 16 (App Router, Turbopack) |
+| 语言 | TypeScript |
+| 样式 | Tailwind CSS 4 + @tailwindcss/typography |
+| ORM | Prisma 7 (driver adapter) |
+| 数据库 | PostgreSQL (Neon / 任意 PG) |
+| 认证 | NextAuth v4 + GitHub + Prisma adapter |
+| RSS 解析 | rss-parser + 代理感知的抓取层 |
+
+## 快速开始
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env        # 填入真实值
+pnpm db:push                # 建表
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 环境变量
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+见 `.env.example`。生产环境（Vercel）需要配置：
 
-## Learn More
+- `DATABASE_URL` — PostgreSQL 连接串
+- `GITHUB_ID` / `GITHUB_SECRET` — GitHub OAuth App
+- `NEXTAUTH_SECRET` — 签名密钥
+- `NEXTAUTH_URL` — 站点完整 URL
+- `CRON_SECRET`（可选）— 保护定时抓取端点
 
-To learn more about Next.js, take a look at the following resources:
+## 数据库迁移
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm postinstall        # 生成 Prisma Client
+pnpm db:push            # 开发：直接同步表结构
+# 生产构建时会自动执行: prisma migrate deploy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 部署
 
-## Deploy on Vercel
+项目已连接 Vercel + GitHub，**推送 `main` 分支即自动部署**。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 生产地址由 Vercel 分配（如 `https://blog-reader-self.vercel.app`）
+- 构建脚本会在部署时自动执行 `prisma migrate deploy`
+- 定时抓取：`vercel.json` 配置每天 02:30 触发 `/api/cron/fetch`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## GitHub OAuth 回调地址
+
+需要在 GitHub → Settings → Developer settings → OAuth Apps 中配置回调：
+
+- 本地：`http://localhost:3000/api/auth/callback/github`
+- 生产：`https://<你的生产域名>/api/auth/callback/github`
