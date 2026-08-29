@@ -62,7 +62,10 @@ pnpm db:push            # 开发：直接同步表结构
 
 ## GitHub OAuth 回调地址
 
-需要在 GitHub → Settings → Developer settings → OAuth Apps 中配置回调：
+GitHub OAuth App 的 **Authorization callback URL 只能填一个值**（不支持同时填多个不同主机）。
 
-- 本地：`http://localhost:3000/api/auth/callback/github`
-- 生产：`https://<你的生产域名>/api/auth/callback/github`
+- **Homepage URL**：`https://blog-reader-self.vercel.app`
+- **Authorization callback URL**：`https://blog-reader-self.vercel.app/api/auth/callback/github`
+
+本地开发时如需测试登录，临时把 Authorization callback URL 改为
+`http://localhost:3000/api/auth/callback/github` 即可，测完恢复生产地址。
