@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseFeed, upsertArticles } from "@/lib/rss";
-import { validateAllPresets, discoverNewFeeds } from "@/lib/validate-feeds";
+import { validateAllPresets, discoverNewFeeds, ensurePresetSeeds } from "@/lib/validate-feeds";
 import { MAX_CONSECUTIVE_FAILURES } from "@/lib/validate-feeds";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,12 @@ export async function GET(request: Request) {
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "未授权" }, { status: 401 });
   }
+
+  // 0. 幂等引导源库（首次运行时填充已校验的官方源）
+  let presetCount = 0;
+  await ensurePresetSeeds()
+    .then((n) => (presetCount = n))
+    .catch(() => {});
 
   const feeds = await prisma.feed.findMany({
     include: { user: { select: { id: true } } },
@@ -71,6 +77,7 @@ export async function GET(request: Request) {
     feeds: feeds.length,
     fetched,
     failed,
+    presetCount,
     presetChecked: presetResult.checked,
     presetValid: presetResult.valid,
     presetInvalid: presetResult.invalid,

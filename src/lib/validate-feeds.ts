@@ -2,9 +2,37 @@ import { prisma } from "@/lib/db";
 import { parseFeed } from "@/lib/rss";
 import { DISCOVERY_SEEDS } from "@/lib/discovery-candidates";
 import { discoverRssForSite } from "@/lib/discover-rss";
+import { PRESET_FEEDS } from "@/lib/preset-feeds";
 
 export const MAX_CONSECUTIVE_FAILURES = 3;
 const DISCOVERY_CONCURRENCY = 5;
+
+/**
+ * 幂等引导：把已验证的官方源灌入 PresetFeed 表（若尚不存在）。
+ * 在 sources 页与 cron 首次运行前调用，确保源库始终有内容，且不去重覆盖已有数据。
+ * 返回当前 PresetFeed 总数。
+ */
+export async function ensurePresetSeeds(): Promise<number> {
+  for (const feed of PRESET_FEEDS) {
+    const normalizedSite = feed.siteUrl.replace(/\/$/, "").toLowerCase();
+    await prisma.presetFeed.upsert({
+      where: { url: feed.url },
+      update: {},
+      create: {
+        title: feed.title,
+        url: feed.url,
+        siteUrl: normalizedSite,
+        category: feed.category,
+        description: feed.description,
+        isValid: true,
+        isNew: false,
+        lastCheckedAt: new Date(),
+        lastSuccessAt: new Date(),
+      },
+    });
+  }
+  return prisma.presetFeed.count();
+}
 
 /**
  * 校验单个用户订阅源：成功则重置健康状态，失败则累加连续失败计数。
