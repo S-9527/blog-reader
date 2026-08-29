@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sanitizeContent } from "@/lib/sanitize";
 import { ArticleActions } from "@/components/article-actions";
+import { FullTextButton } from "@/components/fulltext-button";
 
 function formatDate(date: Date | null) {
   if (!date) return "";
@@ -47,6 +48,9 @@ export default async function ArticlePage(
   }
 
   const safeContent = sanitizeContent(article.content || "");
+  const isShortContent = article.content
+    ? article.content.length < 300 && safeContent.length < 300
+    : true;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
@@ -89,13 +93,15 @@ export default async function ArticlePage(
           </div>
         </header>
 
-        {safeContent ? (
+        {!isShortContent && safeContent ? (
           <div
             className="prose prose-zinc prose-img:my-4 prose-p:leading-relaxed prose-a:text-blue-600 prose-pre:overflow-x-auto max-w-none"
             dangerouslySetInnerHTML={{ __html: safeContent }}
           />
-        ) : (
-          <p className="text-zinc-400">该文章没有正文内容，你可能需要查看原文。</p>
+        ) : null}
+
+        {isShortContent && (
+          <FullTextButton articleId={article.id} sourceUrl={article.url} />
         )}
       </article>
     </div>
