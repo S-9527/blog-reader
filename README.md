@@ -83,7 +83,17 @@ pnpm db:push            # 开发：直接同步表结构
   - **Developer Blog Directory**（`dev-blog-directory/dev-blog-directory`，2000+ 源）
   - **Engineering Blogs**（`kilimchoi/engineering-blogs`，400+ 源）
 - 定时任务 `syncDirectoryFeeds()` 抓取各 OPML，按 `url` 幂等同步进 `PresetFeed` 表：新增标记 `isNew`（7 天后过期），同一 URL 只更新元数据（标题/分类/来源），不产生重复。
-- 前端「发现新源」面板：开放式浏览 + 关键词搜索 + 分类过滤 + 只看新发现，一键订阅为重心，无需输入订阅地址之外的任何东西。
+- 前端「发现新源」面板：开放式浏览 + 关键词搜索 + 分类过滤 + 只看新发现，一键订阅为重心，无需输入订阅地址之外的任何东西。**默认选中「官方源」分类**，官方框架博客置顶优先呈现。
+
+## 官方源自动发现
+
+官方框架/语言/工具博客（React、Next.js、Vue、Svelte、Deno、Go、Rust、K8s ……）**同样不写死、不人工维护**，由链接爬虫自增长（`src/lib/official-discovery.ts`）：
+
+- **种子**：取库中已有来源（官方 + 目录）的站根，作为爬取起点，不维护硬编码清单。
+- **爬取**：抓主页与 `/blog` 子页，收集跨站出链并按域名去重去噪（跳过社交/门户/图床等）。
+- **内容识别**：对候选新域依次探测主页 `rel=alternate` 的 RSS/Atom 端点、再试页面本身是否即 feed，识别成功即收录为 `source='official'`、`category='官方源'`。
+- **有界**：预算制（种子 60 / 内容识别 90）+ 全局墙钟上限 90s，保证 cron 可控、永不挂死。
+- 旧的独立 legacy 官方源一并归位为 `官方源` 层（`promoteLegacyToOfficial`）。
 
 ## 健康校验与自动发现
 
@@ -91,7 +101,8 @@ pnpm db:push            # 开发：直接同步表结构
 
 1. **订阅源健康校验** — 抓取用户订阅源时累计 `consecutiveFailures`，连续失败达到 3 次即标记 `isHealthy=false`，管理页显示「可能失效」标记与最后一次错误。
 2. **订阅目录摄入** — `syncDirectoryFeeds()` 拉取社区 OPML，幂等收录/更新新源；超 7 天的「新发现」标记自动过期。
-3. **源库健康校验（预算制）** — 源库庞大（数千条），为不超时采用预算制：优先校验用户已订阅的源与新发现的源，其余按最久未校验轮转，每次最多校验 `VALIDATE_BUDGET`（120）个；失效源 `isValid=false`，在目录中置灰、暂不可订阅。
+3. **官方源自动发现** — `discoverFeedsFromGraph()` 沿已有来源出链 + 内容识别收录官方博客；`promoteLegacyToOfficial()` 将旧 legacy 归位为官方源。
+4. **源库健康校验（预算制）** — 源库庞大（数千条），为不超时采用预算制：优先校验用户已订阅的源与新发现的源，其余按最久未校验轮转，每次最多校验 `VALIDATE_BUDGET`（120）个；失效源 `isValid=false`，在目录中置灰、暂不可订阅。
 
 ## GitHub OAuth 回调地址
 
