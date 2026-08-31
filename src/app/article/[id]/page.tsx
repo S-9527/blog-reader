@@ -4,9 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sanitizeContent } from "@/lib/sanitize";
-import { ArticleActions } from "@/components/article-actions";
 import { FullTextButton } from "@/components/fulltext-button";
-import { TranslateToggle } from "@/components/translate-toggle";
+import { ArticleReader } from "@/components/article-reader";
 
 function formatDate(date: Date | null) {
   if (!date) return "";
@@ -83,19 +82,14 @@ export default async function ArticlePage(
           <p className="mt-2 text-sm text-zinc-400">
             {formatDate(article.publishedAt)}
           </p>
-          <div className="mt-4">
-            <ArticleActions
-              articleId={article.id}
-              isRead={article.isRead}
-              isStarred={article.isStarred}
-              sourceUrl={article.url}
-            />
-          </div>
         </header>
 
-        <TranslateToggle
+        <ArticleReader
           articleId={article.id}
           title={article.title}
+          isRead={article.isRead}
+          isStarred={article.isStarred}
+          sourceUrl={article.url}
           original={
             !isShortContent && safeContent ? (
               <div
