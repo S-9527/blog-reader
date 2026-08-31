@@ -12,6 +12,7 @@
 - 🔄 手动刷新 + 定时抓取（Vercel Cron，每日一次）
 - 🩺 订阅源健康校验：定时探测，连续失败自动标记「可能失效」
 - 🔍 自动发现：定时抓取官网主页并用标准的 `<link rel="alternate">` 探测出真实 RSS 端点，自动收录新源
+- 🌐 文章翻译：详情页「原文 / 中文译文」一键切换，用 DeepL（tag_handling=html）保留排版，译文落库缓存
 - 🖥️ 响应式侧边栏布局
 
 ## 技术栈
@@ -46,6 +47,17 @@ pnpm dev
 - `NEXTAUTH_SECRET` — 签名密钥
 - `NEXTAUTH_URL` — 站点完整 URL
 - `CRON_SECRET`（可选）— 保护定时抓取端点
+- `DEEPL_API_KEY`（可选）— DeepL API key（`xxxx:fx`，Free 档即可）。未配置时翻译按钮会提示功能未开启
+
+## 文章翻译
+
+详情页正文区右上角有「原文 / 中文译文」切换。点击译文会调用 DeepL API Free（`api-free.deepl.com`，`tag_handling=html`，EN→ZH）：
+- 保留原文章 HTML 结构与排版（代码块、列表、链接、表格等）
+- 若文章只有短摘要，会先自动提取全文再翻译
+- 译文写入 `Article.translatedContent` **落库缓存**，重复查看不消耗 DeepL 配额
+- 超过 DeepL 单次 128 KiB 上限的长文会自动分块翻译
+
+免费档 50 万字符/月，key 获取：https://www.deepl.com/account/summary → API → 生成 Free 密钥。
 
 ## 数据库迁移
 

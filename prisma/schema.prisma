@@ -92,19 +92,20 @@ model PresetFeed {
 }
 
 model Article {
-  id          String    @id @default(cuid())
-  title       String
-  url         String
-  content     String?
-  author      String?
-  publishedAt DateTime?
-  isRead      Boolean   @default(false)
-  isStarred   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  feedId      String
-  userId      String
-  feed        Feed      @relation(fields: [feedId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(cuid())
+  title              String
+  url                String
+  content            String?
+  translatedContent  String?   @db.Text
+  author             String?
+  publishedAt        DateTime?
+  isRead             Boolean   @default(false)
+  isStarred          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  feedId             String
+  userId             String
+  feed               Feed      @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, url])
 }

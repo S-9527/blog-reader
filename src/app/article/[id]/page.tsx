@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { sanitizeContent } from "@/lib/sanitize";
 import { ArticleActions } from "@/components/article-actions";
 import { FullTextButton } from "@/components/fulltext-button";
+import { TranslateToggle } from "@/components/translate-toggle";
 
 function formatDate(date: Date | null) {
   if (!date) return "";
@@ -95,16 +96,19 @@ export default async function ArticlePage(
           </div>
         </header>
 
-        {!isShortContent && safeContent ? (
-          <div
-            className="prose prose-zinc prose-img:my-4 prose-p:leading-relaxed prose-a:text-blue-600 prose-pre:overflow-x-auto max-w-none"
-            dangerouslySetInnerHTML={{ __html: safeContent }}
-          />
-        ) : null}
-
-        {isShortContent && (
-          <FullTextButton articleId={article.id} sourceUrl={article.url} />
-        )}
+        <TranslateToggle
+          articleId={article.id}
+          original={
+            !isShortContent && safeContent ? (
+              <div
+                className="prose prose-zinc prose-img:my-4 prose-p:leading-relaxed prose-a:text-blue-600 prose-pre:overflow-x-auto max-w-none"
+                dangerouslySetInnerHTML={{ __html: safeContent }}
+              />
+            ) : (
+              <FullTextButton articleId={article.id} sourceUrl={article.url} />
+            )
+          }
+        />
       </article>
     </div>
   );
