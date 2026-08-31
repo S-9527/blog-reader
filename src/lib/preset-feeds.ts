@@ -218,8 +218,8 @@ export const PRESET_FEEDS: PresetFeed[] = [
   },
   {
     title: "Vercel",
-    url: "https://vercel.com/blog/feed.xml",
-    siteUrl: "https://vercel.com/blog",
+    url: "https://vercel.com/atom",
+    siteUrl: "https://vercel.com",
     category: "平台与工程博客",
     description: "Vercel 官方博客（Next.js/Serverless 平台）",
   },

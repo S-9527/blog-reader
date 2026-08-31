@@ -7,19 +7,21 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
-// 将 35 个已实测有效的官方源灌入 PresetFeed 表（幂等 upsert）。
+// 将官方源灌入 PresetFeed 表。同名源（title）存在则更新其 url 等字段，否则新建。
 async function main() {
   let seeded = 0;
   let updated = 0;
 
   for (const feed of PRESET_FEEDS) {
     const normalizedSite = feed.siteUrl.replace(/\/$/, "").toLowerCase();
-    const existing = await prisma.presetFeed.findUnique({ where: { url: feed.url } });
-    if (existing) {
+    const existingByTitle = await prisma.presetFeed.findFirst({
+      where: { title: feed.title },
+    });
+    if (existingByTitle) {
       await prisma.presetFeed.update({
-        where: { url: feed.url },
+        where: { id: existingByTitle.id },
         data: {
-          title: feed.title,
+          url: feed.url,
           siteUrl: normalizedSite,
           category: feed.category,
           description: feed.description,
@@ -27,8 +29,10 @@ async function main() {
       });
       updated++;
     } else {
-      await prisma.presetFeed.create({
-        data: {
+      await prisma.presetFeed.upsert({
+        where: { url: feed.url },
+        update: {},
+        create: {
           title: feed.title,
           url: feed.url,
           siteUrl: normalizedSite,

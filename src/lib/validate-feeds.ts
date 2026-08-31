@@ -8,13 +8,30 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
 const DISCOVERY_CONCURRENCY = 5;
 
 /**
- * 幂等引导：把已验证的官方源灌入 PresetFeed 表（若尚不存在）。
- * 在 sources 页与 cron 首次运行前调用，确保源库始终有内容，且不去重覆盖已有数据。
+ * 幂等引导：把已验证的官方源灌入 PresetFeed 表。
+ * 若存在同名源（按 title 匹配）则更新其 url 等字段（用于官方改版/修正地址后同步），
+ * 否则新建。在 sources 页与 cron 首次运行前调用。
  * 返回当前 PresetFeed 总数。
  */
 export async function ensurePresetSeeds(): Promise<number> {
   for (const feed of PRESET_FEEDS) {
     const normalizedSite = feed.siteUrl.replace(/\/$/, "").toLowerCase();
+    const existingByTitle = await prisma.presetFeed.findFirst({
+      where: { title: feed.title },
+    });
+    if (existingByTitle) {
+      await prisma.presetFeed.update({
+        where: { id: existingByTitle.id },
+        data: {
+          url: feed.url,
+          siteUrl: normalizedSite,
+          category: feed.category,
+          description: feed.description,
+        },
+      });
+      continue;
+    }
+    // 同名源不存在时按 url 幂等新建，避免重复
     await prisma.presetFeed.upsert({
       where: { url: feed.url },
       update: {},
