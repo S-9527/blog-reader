@@ -97,6 +97,7 @@ model Article {
   url                String
   content            String?
   translatedContent  String?   @db.Text
+  translatedTitle    String?
   author             String?
   publishedAt        DateTime?
   isRead             Boolean   @default(false)

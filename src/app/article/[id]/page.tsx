@@ -80,9 +80,6 @@ export default async function ArticlePage(
             </Link>
             {article.author && <span>· {article.author}</span>}
           </div>
-          <h1 className="text-2xl font-bold leading-tight text-zinc-900">
-            {article.title}
-          </h1>
           <p className="mt-2 text-sm text-zinc-400">
             {formatDate(article.publishedAt)}
           </p>
@@ -98,6 +95,7 @@ export default async function ArticlePage(
 
         <TranslateToggle
           articleId={article.id}
+          title={article.title}
           original={
             !isShortContent && safeContent ? (
               <div

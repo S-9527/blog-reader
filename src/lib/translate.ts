@@ -126,18 +126,21 @@ function ByteLen(s: string) {
   return Buffer.byteLength(s, "utf8");
 }
 
-async function translateChunk(chunk: string): Promise<string> {
-  const response = await postForm(
-    DEEPL_FREE_BASE,
-    {
-      text: chunk,
-      target_lang: "ZH",
-      source_lang: "EN",
-      tag_handling: "html",
-      preserve_formatting: "1",
-    },
-    process.env.DEEPL_API_KEY!
-  );
+async function translateChunk(
+  chunk: string,
+  options: { tagHandling?: "html"; preserveFormatting?: boolean } = {}
+): Promise<string> {
+  const form: Record<string, string> = {
+    text: chunk,
+    target_lang: "ZH",
+    source_lang: "EN",
+  };
+  if (options.tagHandling) {
+    form.tag_handling = options.tagHandling;
+    form.preserve_formatting = options.preserveFormatting ? "1" : "0";
+  }
+
+  const response = await postForm(DEEPL_FREE_BASE, form, process.env.DEEPL_API_KEY!);
 
   if (response.status !== 200) {
     const detail =
@@ -160,18 +163,35 @@ async function translateChunk(chunk: string): Promise<string> {
  * 将一段英文 HTML 正文翻译为中文，保留原有 HTML 结构与排版。
  */
 export async function translateHtmlToZh(html: string): Promise<string> {
-  if (!process.env.DEEPL_API_KEY) {
-    throw new Error("未配置 DEEPL_API_KEY，无法使用翻译功能");
-  }
-
   const trimmed = (html || "").trim();
   if (!trimmed) return "";
 
   const chunks = splitHtmlChunks(trimmed);
   const results: string[] = [];
   for (const chunk of chunks) {
-    const translated = await translateChunk(chunk);
+    const translated = await translateChunk(chunk, {
+      tagHandling: "html",
+      preserveFormatting: true,
+    });
     if (translated) results.push(translated);
   }
   return results.join("");
+}
+
+/**
+ * 将一句英文纯文本（如文章标题）翻译为中文。
+ */
+export async function translateTextToZh(text: string): Promise<string> {
+  const trimmed = (text || "").trim();
+  if (!trimmed) return "";
+  if (trimmed.length > 128 * 1024) {
+    const chunks = splitHtmlChunks(trimmed);
+    const results: string[] = [];
+    for (const chunk of chunks) {
+      const translated = await translateChunk(chunk);
+      if (translated) results.push(translated);
+    }
+    return results.join("");
+  }
+  return translateChunk(trimmed);
 }

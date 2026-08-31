@@ -5,17 +5,19 @@ import { Languages, Loader2, TriangleAlert } from "lucide-react";
 
 type Props = {
   articleId: string;
+  title: string;
   original: ReactNode;
 };
 
-export function TranslateToggle({ articleId, original }: Props) {
+export function TranslateToggle({ articleId, title, original }: Props) {
   const [mode, setMode] = useState<"original" | "translated">("original");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [translatedTitle, setTranslatedTitle] = useState<string | null>(null);
   const [translated, setTranslated] = useState<string | null>(null);
 
   async function showTranslation() {
-    if (translated) {
+    if (translated && translatedTitle) {
       setMode("translated");
       return;
     }
@@ -30,6 +32,7 @@ export function TranslateToggle({ articleId, original }: Props) {
         setError(data.error || "翻译失败");
         return;
       }
+      setTranslatedTitle(data.title);
       setTranslated(data.content);
       setMode("translated");
     } catch {
@@ -41,6 +44,9 @@ export function TranslateToggle({ articleId, original }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
+      <h1 className="text-2xl font-bold leading-tight text-zinc-900">
+        {mode === "translated" && translatedTitle ? translatedTitle : title}
+      </h1>
       <div className="flex items-center justify-end gap-1 self-end rounded-md border border-zinc-200 bg-zinc-50 p-1 text-sm">
         <button
           type="button"

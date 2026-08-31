@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { extractArticle } from "@/lib/extract-article";
-import { translateHtmlToZh, isTranslationConfigured } from "@/lib/translate";
+import { translateHtmlToZh, translateTextToZh, isTranslationConfigured } from "@/lib/translate";
 import { sanitizeContent } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +37,11 @@ export async function POST(
   }
 
   // 已有缓存译文则直接返回
-  if (article.translatedContent) {
-    return NextResponse.json({ content: sanitizeContent(article.translatedContent) });
+  if (article.translatedContent && article.translatedTitle) {
+    return NextResponse.json({
+      title: article.translatedTitle,
+      content: sanitizeContent(article.translatedContent),
+    });
   }
 
   // 确保有完整正文：若原文过短，先提取全文再翻译
@@ -68,9 +71,11 @@ export async function POST(
     return NextResponse.json({ error: "该文章没有可翻译的正文" }, { status: 400 });
   }
 
-  let translated: string;
+  let translatedTitle: string;
+  let translatedContent: string;
   try {
-    translated = await translateHtmlToZh(content);
+    translatedTitle = await translateTextToZh(article.title);
+    translatedContent = await translateHtmlToZh(content);
   } catch (e) {
     const message = e instanceof Error ? e.message : "翻译失败";
     return NextResponse.json({ error: `翻译失败：${message}` }, { status: 502 });
@@ -78,8 +83,11 @@ export async function POST(
 
   await prisma.article.update({
     where: { id: article.id },
-    data: { translatedContent: translated },
+    data: { translatedTitle, translatedContent },
   });
 
-  return NextResponse.json({ content: sanitizeContent(translated) });
+  return NextResponse.json({
+    title: translatedTitle,
+    content: sanitizeContent(translatedContent),
+  });
 }
