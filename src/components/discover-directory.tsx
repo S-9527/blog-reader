@@ -41,7 +41,8 @@ function normalize(url: string) {
 export function DiscoverDirectory({ subscribedUrls, feeds }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("全部");
+  const hasOfficial = feeds.some((f) => f.category === "官方源");
+  const [category, setCategory] = useState<string>(hasOfficial ? "官方源" : "全部");
   const [onlyNew, setOnlyNew] = useState(false);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [subscribing, setSubscribing] = useState<string | null>(null);

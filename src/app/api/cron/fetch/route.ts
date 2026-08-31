@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { parseFeed, upsertArticles } from "@/lib/rss";
 import { validateAllPresets, syncDirectoryFeeds } from "@/lib/validate-feeds";
 import { MAX_CONSECUTIVE_FAILURES } from "@/lib/validate-feeds";
+import {
+  discoverFeedsFromGraph,
+  promoteLegacyToOfficial,
+} from "@/lib/official-discovery";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,6 +29,17 @@ export async function GET(request: Request) {
     where: { isNew: true, discoveredAt: { lt: newCutoff } },
     data: { isNew: false },
   });
+
+  // 0.2 官方源自动发现：从已有来源沿出链+内容识别收集新官方博客；旧 legacy 归位为官方源
+  const [graphResult, promotedCount] = await Promise.all([
+    discoverFeedsFromGraph().catch(() => null),
+    promoteLegacyToOfficial().catch(() => 0),
+  ]);
+  const officialResult = {
+    discovered: graphResult?.discovered ?? 0,
+    updated: graphResult?.updated ?? 0,
+    promoted: promotedCount,
+  };
 
   const feeds = await prisma.feed.findMany({
     include: { user: { select: { id: true } } },
@@ -81,6 +96,9 @@ export async function GET(request: Request) {
     directoryAdded: dirResult.added,
     directoryUpdated: dirResult.updated,
     directoryFailed: dirResult.failed,
+    officialDiscovered: officialResult.discovered,
+    officialUpdated: officialResult.updated,
+    officialPromoted: officialResult.promoted,
     presetChecked: presetResult.checked,
     presetValid: presetResult.valid,
     presetInvalid: presetResult.invalid,

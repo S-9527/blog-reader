@@ -31,6 +31,7 @@ function fetchViaNode(url: string, timeoutMs: number) {
   return new Promise<{ status: number; body: string }>((resolve, reject) => {
     const mod = url.startsWith("https") ? https : http;
     const agent = getProxyUrl() ? new HttpsProxyAgent(getProxyUrl()!) : undefined;
+    let settled = false;
     const req = mod.get(
       url,
       { agent, headers: { "User-Agent": "FeedFlow RSS Reader" } },
@@ -38,11 +39,30 @@ function fetchViaNode(url: string, timeoutMs: number) {
         let data = "";
         res.setEncoding("utf8");
         res.on("data", (c) => (data += c));
-        res.on("end", () => resolve({ status: res.statusCode ?? 0, body: data }));
+        res.on("end", () => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(hardTimer);
+            resolve({ status: res.statusCode ?? 0, body: data });
+          }
+        });
       }
     );
-    req.on("error", reject);
-    req.setTimeout(timeoutMs, () => req.destroy(new Error("Request timed out")));
+    // 硬超时：无论 socket 活动与否，到点直接 reject，避免 TLS 握手被阻断时挂死
+    const hardTimer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        req.destroy();
+        reject(new Error("Request timed out"));
+      }
+    }, timeoutMs);
+    req.on("error", (e) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(hardTimer);
+        reject(e);
+      }
+    });
   });
 }
 
