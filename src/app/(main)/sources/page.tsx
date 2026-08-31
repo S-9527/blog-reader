@@ -3,9 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AddFeedForm } from "@/components/add-feed-form";
 import { FeedList } from "@/components/feed-list";
-import { PresetFeedPicker } from "@/components/preset-feed-picker";
-import { ensurePresetSeeds } from "@/lib/validate-feeds";
-import type { PresetFeedCategory } from "@/lib/preset-feeds";
+import { DiscoverDirectory } from "@/components/discover-directory";
 
 export default async function SourcesPage() {
   const session = await getServerSession(authOptions);
@@ -21,27 +19,22 @@ export default async function SourcesPage() {
 
   const subscribedUrls = new Set(feeds.map((f) => f.url));
 
-  await ensurePresetSeeds().catch(() => {});
-
-  const presets = await prisma.presetFeed.findMany({
-    orderBy: [{ isNew: "desc" }, { category: "asc" }, { title: "asc" }],
+  const directory = await prisma.presetFeed.findMany({
+    orderBy: [{ isNew: "desc" }, { title: "asc" }],
     select: {
+      id: true,
       title: true,
       url: true,
       category: true,
+      source: true,
       description: true,
       isValid: true,
       isNew: true,
     },
   });
 
-  const presetsForPicker = presets.map((p) => ({
-    ...p,
-    category: p.category as PresetFeedCategory,
-  }));
-
   return (
-    <div className="mx-auto max-w-2xl px-6 py-6">
+    <div className="mx-auto max-w-3xl px-6 py-6">
       <header className="mb-6">
         <h1 className="text-lg font-semibold text-zinc-900">订阅源管理</h1>
         <p className="mt-1 text-sm text-zinc-500">
@@ -50,7 +43,13 @@ export default async function SourcesPage() {
       </header>
       <AddFeedForm />
       <div className="mb-6">
-        <PresetFeedPicker subscribedUrls={subscribedUrls} presets={presetsForPicker} />
+        <DiscoverDirectory
+          subscribedUrls={subscribedUrls}
+          feeds={directory.map((d) => ({
+            ...d,
+            description: d.description,
+          }))}
+        />
       </div>
       <FeedList
         feeds={feeds.map((f) => ({

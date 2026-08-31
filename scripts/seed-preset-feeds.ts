@@ -1,54 +1,19 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PRESET_FEEDS } from "../src/lib/preset-feeds";
+import { syncDirectoryFeeds } from "../src/lib/validate-feeds";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
 });
 const prisma = new PrismaClient({ adapter });
 
-// 将官方源灌入 PresetFeed 表。同名源（title）存在则更新其 url 等字段，否则新建。
+// 摄入社区开放 OPML 订阅目录到 PresetFeed 表。
 async function main() {
-  let seeded = 0;
-  let updated = 0;
-
-  for (const feed of PRESET_FEEDS) {
-    const normalizedSite = feed.siteUrl.replace(/\/$/, "").toLowerCase();
-    const existingByTitle = await prisma.presetFeed.findFirst({
-      where: { title: feed.title },
-    });
-    if (existingByTitle) {
-      await prisma.presetFeed.update({
-        where: { id: existingByTitle.id },
-        data: {
-          url: feed.url,
-          siteUrl: normalizedSite,
-          category: feed.category,
-          description: feed.description,
-        },
-      });
-      updated++;
-    } else {
-      await prisma.presetFeed.upsert({
-        where: { url: feed.url },
-        update: {},
-        create: {
-          title: feed.title,
-          url: feed.url,
-          siteUrl: normalizedSite,
-          category: feed.category,
-          description: feed.description,
-          isValid: true,
-          isNew: false,
-          lastCheckedAt: new Date(),
-          lastSuccessAt: new Date(),
-        },
-      });
-      seeded++;
-    }
-  }
-
-  console.log(`PresetFeed 种子完成：新增 ${seeded}，更新 ${updated}，共 ${PRESET_FEEDS.length} 个源`);
+  const result = await syncDirectoryFeeds();
+  const total = await prisma.presetFeed.count();
+  console.log(
+    `OPML 摄入完成：新增 ${result.added}，更新 ${result.updated}，失败 ${result.failed}；库中共 ${total} 个源`
+  );
 }
 
 main()

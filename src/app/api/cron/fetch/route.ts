@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseFeed, upsertArticles } from "@/lib/rss";
-import { validateAllPresets, discoverNewFeeds, ensurePresetSeeds } from "@/lib/validate-feeds";
+import { validateAllPresets, syncDirectoryFeeds } from "@/lib/validate-feeds";
 import { MAX_CONSECUTIVE_FAILURES } from "@/lib/validate-feeds";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "未授权" }, { status: 401 });
   }
 
-  // 0. 幂等引导源库（首次运行时填充已校验的官方源）
-  let presetCount = 0;
-  await ensurePresetSeeds()
-    .then((n) => (presetCount = n))
+  // 0. 摄入社区开放 OPML 订阅目录（首次及每次 cron 刷新新源）
+  let dirResult = { added: 0, updated: 0, failed: 0 };
+  await syncDirectoryFeeds()
+    .then((r) => (dirResult = r))
     .catch(() => {});
+
+  // 0.1 超过 7 天的"新发现"标记过期，避免永远高亮
+  const newCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  await prisma.presetFeed.updateMany({
+    where: { isNew: true, discoveredAt: { lt: newCutoff } },
+    data: { isNew: false },
+  });
 
   const feeds = await prisma.feed.findMany({
     include: { user: { select: { id: true } } },
@@ -59,17 +66,11 @@ export async function GET(request: Request) {
     }
   }
 
-  // 2. 校验官方源库可用性
+  // 2. 校验源库可用性
   const presetResult = await validateAllPresets().catch(() => ({
     checked: 0,
     valid: 0,
     invalid: 0,
-  }));
-
-  // 3. 自动发现新的有效源
-  const discoveryResult = await discoverNewFeeds().catch(() => ({
-    discovered: 0,
-    totalSeeds: 0,
   }));
 
   return NextResponse.json({
@@ -77,10 +78,11 @@ export async function GET(request: Request) {
     feeds: feeds.length,
     fetched,
     failed,
-    presetCount,
+    directoryAdded: dirResult.added,
+    directoryUpdated: dirResult.updated,
+    directoryFailed: dirResult.failed,
     presetChecked: presetResult.checked,
     presetValid: presetResult.valid,
     presetInvalid: presetResult.invalid,
-    discovered: discoveryResult.discovered,
   });
 }

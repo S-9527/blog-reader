@@ -80,7 +80,8 @@ model PresetFeed {
   title          String
   url            String    @unique
   siteUrl        String?
-  category       String
+  category       String    @default("")
+  source         String    @default("legacy")
   description    String?
   isValid        Boolean   @default(true)
   isNew          Boolean   @default(false)

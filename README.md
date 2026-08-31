@@ -6,12 +6,12 @@
 
 - 🔐 GitHub OAuth 多用户登录（数据库会话）
 - 📡 订阅任意 RSS/Atom 源，自动解析标题、站点图标
-- 🧰 内置「官方博客源库」：30+ 主流框架/语言/平台博客，勾选一键批量订阅；定时任务还会自动发现并收录新源
+- 🧰 开源订阅目录：自动摄入社区维护的 OPML 开放目录（2000+ 源），浏览/搜索/一键订阅，无需人工维护
 - 📰 文章流：全部 / 未读 / 收藏 / 按源筛选
 - ✨ 文章详情：消毒后的 HTML 正文直接渲染，阅读即标记，支持收藏；摘要太短可「加载全文」
 - 🔄 手动刷新 + 定时抓取（Vercel Cron，每日一次）
 - 🩺 订阅源健康校验：定时探测，连续失败自动标记「可能失效」
-- 🔍 自动发现：定时抓取官网主页并用标准的 `<link rel="alternate">` 探测出真实 RSS 端点，自动收录新源
+- 🔍 自动发现：定时摄入社区开放的 OPML 订阅目录（Developer Blog Directory、Engineering Blogs 等），自动收录/更新新源
 - 🌐 文章翻译：详情页「原文 / 中文译文」一键切换，用 DeepL（tag_handling=html）保留排版，译文落库缓存
 - 🖥️ 响应式侧边栏布局
 
@@ -75,18 +75,23 @@ pnpm db:push            # 开发：直接同步表结构
 - 构建脚本会在部署时自动执行 `prisma migrate deploy`
 - 定时抓取：`vercel.json` 配置每天 02:30 触发 `/api/cron/fetch`（抓取文章 + 校验健康 + 自动发现）
 
-## 官方博客源库
+## 订阅目录（开源 OPML）
 
-位于 `src/lib/preset-feeds.ts`，按「前端框架 / 后端与语言 / 数据库与基础设施 / 移动与浏览器 / 平台与工程博客」分类。
-所有地址均已实测可用。运行时通过 `ensurePresetSeeds()` 幂等灌入 `PresetFeed` 表（在订阅源管理页首次打开、以及定时任务运行时各自动执行一次），无需手动种库。
+「发现新源」不再依赖任何人工维护的名单，而是**自动摄入社区维护的开放 OPML 订阅目录**：
+
+- 根源（见 `src/lib/opml-sources.ts`）：
+  - **Developer Blog Directory**（`dev-blog-directory/dev-blog-directory`，2000+ 源）
+  - **Engineering Blogs**（`kilimchoi/engineering-blogs`，400+ 源）
+- 定时任务 `syncDirectoryFeeds()` 抓取各 OPML，按 `url` 幂等同步进 `PresetFeed` 表：新增标记 `isNew`（7 天后过期），同一 URL 只更新元数据（标题/分类/来源），不产生重复。
+- 前端「发现新源」面板：开放式浏览 + 关键词搜索 + 分类过滤 + 只看新发现，一键订阅为重心，无需输入订阅地址之外的任何东西。
 
 ## 健康校验与自动发现
 
 定时任务 `/api/cron/fetch`（每日 02:30）在抓取文章之外，还执行：
 
 1. **订阅源健康校验** — 抓取用户订阅源时累计 `consecutiveFailures`，连续失败达到 3 次即标记 `isHealthy=false`，管理页显示「可能失效」标记与最后一次错误。
-2. **官方源库校验** — 逐个探测 `PresetFeed`，失效的源 `isValid=false`，在源库中置灰、暂不可订阅。
-3. **自动发现新源** — 从 `src/lib/discovery-candidates.ts` 的**站点种子池**（存的是稳定的站点主页域名，而非脆弱的 RSS 路径）抓取主页，用标准 `<link rel="alternate">` 提取真实 RSS 端点；无声明的站点退而探测常见路径兜底。经 `parseFeed` 真实解析通过的端点自动收录，标记为「新发现」，官方改版后也能自动跟随到新的 RSS 路径。
+2. **订阅目录摄入** — `syncDirectoryFeeds()` 拉取社区 OPML，幂等收录/更新新源；超 7 天的「新发现」标记自动过期。
+3. **源库健康校验（预算制）** — 源库庞大（数千条），为不超时采用预算制：优先校验用户已订阅的源与新发现的源，其余按最久未校验轮转，每次最多校验 `VALIDATE_BUDGET`（120）个；失效源 `isValid=false`，在目录中置灰、暂不可订阅。
 
 ## GitHub OAuth 回调地址
 
